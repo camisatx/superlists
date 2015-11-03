@@ -35,9 +35,11 @@ class NewVisitorTest(LiveServerTestCase):
         # Type 'Buy peacock feathers' into text box (for fly-fishing lures)
         inputbox.send_keys('Buy peacock feathers')
 
-        # Hit enter, the page updates and shows '1: Buy peacock feathers' as an
-        #   item in a to-do list table
+        # Hit enter, page redirects to a new URL and now shows
+        #   '1: Buy peacock feathers' as an item in a to-do list table
         inputbox.send_keys(Keys.ENTER)
+        user_1_list_url = self.browser.current_url
+        self.assertRegex(user_1_list_url, '/lists/.+')
         self.check_for_row_in_list_table('1: Buy peacock feathers')
 
         # Add another item to the list: 'Use peacock feathers to make a fly'
@@ -48,5 +50,32 @@ class NewVisitorTest(LiveServerTestCase):
         # Page updates, showing both items in the list
         self.check_for_row_in_list_table('1: Buy peacock feathers')
         self.check_for_row_in_list_table('2: Use peacock feathers to make a fly')
+
+        # A new user comes to the site
+
+        # Using a new browser session (limit effect of cookies)
+        self.browser.quit()
+        self.browser = webdriver.Firefox()
+
+        # New user visits the home page. Ensure no sign of prior user.
+        self.browser.get(self.live_server_url)
+        page_text = self.browser.find_element_by_tag_name('body').text
+        self.assertNotIn('Buy peacock feathers', page_text)
+        self.assertNotIn('make a fly', page_text)
+
+        # New user starts a new list
+        inputbox = self.browser.find_element_by_id('id_new_item')
+        inputbox.send_keys('Buy milk')
+        inputbox.send_keys(Keys.ENTER)
+
+        # New user gets their own unique URL
+        user_2_list_url = self.browser.current_url
+        self.assertRegex(user_2_list_url, '/lists/.+')
+        self.assertNotEqual(user_2_list_url, user_1_list_url)
+
+        # Again, their should be no trace of the first user
+        page_text = self.browser.find_element_by_tag_name('body').text
+        self.assertNotIn('Buy peacock feathers', page_text)
+        self.assertIn('Buy milk', page_text)
 
         self.fail('Finished the test')
